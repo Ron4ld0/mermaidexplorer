@@ -1,5 +1,11 @@
 # Mermaid Class Graph Explorer
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![React](https://img.shields.io/badge/React-19-61dafb.svg?logo=react&logoColor=black)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-7.0-3178c6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-8-646cff.svg?logo=vite&logoColor=white)](https://vite.dev/)
+[![Cytoscape.js](https://img.shields.io/badge/Cytoscape.js-3.34-ea580c.svg)](https://js.cytoscape.org/)
+
 Uma aplicação web interativa desenvolvida com **React 19**, **TypeScript**, **Vite** e **Cytoscape.js** para transformar diagramas de classe em sintaxe [Mermaid](https://mermaid.js.org/) em uma experiência visual interativa no estilo **Knowledge Graph** e **Circular Layout**.
 
 Projetada com foco em arquiteturas de software reais e diagramas de médio a grande porte (**20 a 100+ classes**), oferecendo navegação fluida, múltiplos motores de layout matemático, inspeção detalhada de membros e controle dinâmico de exploração.
