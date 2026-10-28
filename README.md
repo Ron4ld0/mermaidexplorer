@@ -128,7 +128,7 @@ mermaidexplorer/
 └── vite.config.ts          # Configurações do Vite e Vitest
 ```
 
-Para uma análise aprofundada da arquitetura de software, estrutura do parser e decisões de design, consulte o arquivo [TECHNICAL_SUMMARY.md](file:///c:/Users/Ronaldo%20Melo/Desktop/Projects/mermaidexplorer/TECHNICAL_SUMMARY.md).
+Para uma análise aprofundada da arquitetura de software, estrutura do parser e decisões de design, consulte o arquivo [TECHNICAL_SUMMARY.md](./TECHNICAL_SUMMARY.md).
 
 ---
 
