@@ -1,0 +1,73 @@
+.graph-controls-toolbar {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: var(--radius-md);
+  z-index: 40;
+  box-shadow: var(--shadow-lg);
+  transition: right 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.graph-controls-toolbar.shifted {
+  right: 372px;
+}
+
+.ctrl-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ctrl-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.ctrl-btn.active {
+  background: var(--accent-primary-glow);
+  color: var(--accent-primary);
+}
+
+.ctrl-btn:active {
+  transform: scale(0.95);
+}
+
+.ctrl-separator {
+  width: 1px;
+  height: 18px;
+  background: var(--border-light);
+  margin: 0 2px;
+}
+
+.ctrl-btn.highlight-action {
+  width: auto;
+  padding: 0 8px;
+  color: var(--accent-warning);
+}
+
+.ctrl-btn.highlight-action:hover {
+  background: rgba(245, 158, 11, 0.15);
+}
+
+.ctrl-badge {
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--accent-warning);
+  color: #000000;
+  border-radius: var(--radius-full);
+  padding: 1px 5px;
+  line-height: 1;
+}
