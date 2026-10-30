@@ -1,7 +1,43 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { parseMermaidClassDiagram } from '../services/mermaidParser';
 import type { ClassNodeData, ClassRelationData, ParsedDiagram } from '../types/graph';
 import { SAMPLE_DIAGRAMS } from '../utils/sampleDiagrams';
+
+/**
+ * Extracts Mermaid code if the remote file is wrapped in Markdown code fences (```mermaid ... ```).
+ */
+function sanitizeRemoteMermaid(rawText: string): string {
+  const trimmed = rawText.trim();
+  const fenceMatch = trimmed.match(/```(?:mermaid)?\s*([\s\S]*?)```/i);
+  if (fenceMatch && fenceMatch[1]) {
+    return fenceMatch[1].trim();
+  }
+  return trimmed;
+}
+
+/**
+ * Normalizes GitHub Gist raw URLs by stripping the 40-char commit hash if present,
+ * ensuring the URL always points to the latest revision of the Gist.
+ */
+function normalizeDiagramUrl(rawUrl: string): string {
+  return rawUrl
+    .trim()
+    .replace(
+      /^(https?:\/\/gist\.githubusercontent\.com\/[^/]+\/[a-f0-9]+\/raw)\/[a-f0-9]{40}(\/.*)?$/i,
+      '$1$2'
+    );
+}
+
+function getConfiguredDiagramUrl(): string | undefined {
+  if (typeof window !== 'undefined') {
+    const urlParam = new URLSearchParams(window.location.search).get('url');
+    if (urlParam && urlParam.trim()) {
+      return normalizeDiagramUrl(urlParam);
+    }
+  }
+  const envUrl = import.meta.env.VITE_DIAGRAM_URL;
+  return envUrl && envUrl.trim() ? normalizeDiagramUrl(envUrl) : undefined;
+}
 
 export interface UseGraphReturn {
   // Data
@@ -15,6 +51,13 @@ export interface UseGraphReturn {
   highlightedNodeIds: Set<string>;
   searchQuery: string;
   filteredClasses: ClassNodeData[];
+  activeSampleId: string;
+
+  // Remote diagram state
+  hasRemoteDiagram: boolean;
+  remoteDiagramName: string;
+  isLoadingRemote: boolean;
+  remoteError: string | null;
 
   // Statistics
   stats: {
@@ -28,6 +71,7 @@ export interface UseGraphReturn {
   // Actions
   setMermaidCode: (code: string) => void;
   loadSample: (sampleId: string) => void;
+  reloadRemoteDiagram: () => void;
   selectClass: (classId: string | null) => void;
   setSearchQuery: (query: string) => void;
   showAllNodes: () => void;
@@ -43,7 +87,16 @@ export interface UseGraphReturn {
 }
 
 export function useGraph(initialCode: string = SAMPLE_DIAGRAMS[0].code): UseGraphReturn {
+  const diagramUrl = useMemo(() => getConfiguredDiagramUrl(), []);
+  const hasRemoteDiagram = Boolean(diagramUrl);
+  const remoteDiagramName = import.meta.env.VITE_DIAGRAM_NAME?.trim() || 'Diagrama da Equipe';
+
   const [mermaidCode, setMermaidCodeState] = useState<string>(initialCode);
+  const [activeSampleId, setActiveSampleId] = useState<string>(
+    hasRemoteDiagram ? 'remote' : SAMPLE_DIAGRAMS[0].id
+  );
+  const [isLoadingRemote, setIsLoadingRemote] = useState<boolean>(hasRemoteDiagram);
+  const [remoteError, setRemoteError] = useState<string | null>(null);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -79,8 +132,8 @@ export function useGraph(initialCode: string = SAMPLE_DIAGRAMS[0].code): UseGrap
     return new Set();
   });
 
-  // When a new diagram is loaded, make all classes visible
-  const setMermaidCode = useCallback((newCode: string) => {
+  // Helper to apply new diagram code and reset visibility/selection
+  const applyDiagramCode = useCallback((newCode: string) => {
     setMermaidCodeState(newCode);
     const res = parseMermaidClassDiagram(newCode);
     if (res.success && res.diagram) {
@@ -89,12 +142,86 @@ export function useGraph(initialCode: string = SAMPLE_DIAGRAMS[0].code): UseGrap
     }
   }, []);
 
-  const loadSample = useCallback((sampleId: string) => {
-    const sample = SAMPLE_DIAGRAMS.find((s) => s.id === sampleId);
-    if (sample) {
-      setMermaidCode(sample.code);
-    }
-  }, [setMermaidCode]);
+  // When user edits code manually in the editor
+  const setMermaidCode = useCallback(
+    (newCode: string) => {
+      setRemoteError(null);
+      setActiveSampleId('custom');
+      applyDiagramCode(newCode);
+    },
+    [applyDiagramCode]
+  );
+
+  // Fetch remote diagram from VITE_DIAGRAM_URL or ?url=
+  const fetchRemoteDiagram = useCallback(
+    async (signal?: AbortSignal) => {
+      if (!diagramUrl) return;
+      setIsLoadingRemote(true);
+      setRemoteError(null);
+
+      try {
+        const separator = diagramUrl.includes('?') ? '&' : '?';
+        const cacheBustedUrl = `${diagramUrl}${separator}t=${Date.now()}`;
+        const response = await fetch(cacheBustedUrl, {
+          cache: 'no-store',
+          signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status} (${response.statusText})`);
+        }
+
+        const rawText = await response.text();
+        const cleanCode = sanitizeRemoteMermaid(rawText);
+
+        if (!cleanCode) {
+          throw new Error('O arquivo remoto retornou vazio.');
+        }
+
+        applyDiagramCode(cleanCode);
+        setActiveSampleId('remote');
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          return;
+        }
+        const message = err instanceof Error ? err.message : 'Erro desconhecido';
+        setRemoteError(`Falha ao carregar diagrama remoto: ${message}`);
+      } finally {
+        if (!signal?.aborted) {
+          setIsLoadingRemote(false);
+        }
+      }
+    },
+    [diagramUrl, applyDiagramCode]
+  );
+
+  // Automatically load remote diagram on initial mount if configured
+  useEffect(() => {
+    if (!diagramUrl) return;
+    const controller = new AbortController();
+    void fetchRemoteDiagram(controller.signal);
+    return () => controller.abort();
+  }, [diagramUrl, fetchRemoteDiagram]);
+
+  const reloadRemoteDiagram = useCallback(() => {
+    void fetchRemoteDiagram();
+  }, [fetchRemoteDiagram]);
+
+  const loadSample = useCallback(
+    (sampleId: string) => {
+      if (sampleId === 'remote') {
+        void fetchRemoteDiagram();
+        return;
+      }
+      const sample = SAMPLE_DIAGRAMS.find((s) => s.id === sampleId);
+      if (sample) {
+        setRemoteError(null);
+        setActiveSampleId(sample.id);
+        applyDiagramCode(sample.code);
+      }
+    },
+    [applyDiagramCode, fetchRemoteDiagram]
+  );
 
   // Selected class data
   const selectedClass = useMemo(() => {
@@ -130,16 +257,19 @@ export function useGraph(initialCode: string = SAMPLE_DIAGRAMS[0].code): UseGrap
   }, [allClassIds]);
 
   // Hide single node
-  const hideNode = useCallback((classId: string) => {
-    setVisibleNodeIds((prev) => {
-      const next = new Set(prev);
-      next.delete(classId);
-      return next;
-    });
-    if (selectedClassId === classId) {
-      setSelectedClassId(null);
-    }
-  }, [selectedClassId]);
+  const hideNode = useCallback(
+    (classId: string) => {
+      setVisibleNodeIds((prev) => {
+        const next = new Set(prev);
+        next.delete(classId);
+        return next;
+      });
+      if (selectedClassId === classId) {
+        setSelectedClassId(null);
+      }
+    },
+    [selectedClassId]
+  );
 
   // Expand node (reveal all immediate neighbors in visible set)
   const expandNode = useCallback(
@@ -162,9 +292,12 @@ export function useGraph(initialCode: string = SAMPLE_DIAGRAMS[0].code): UseGrap
   );
 
   // Collapse node (hide selected node)
-  const collapseNode = useCallback((classId: string) => {
-    hideNode(classId);
-  }, [hideNode]);
+  const collapseNode = useCallback(
+    (classId: string) => {
+      hideNode(classId);
+    },
+    [hideNode]
+  );
 
   // Collapse neighbors (hide neighbor nodes that are only connected to classId)
   const collapseNeighbors = useCallback(
@@ -296,9 +429,15 @@ export function useGraph(initialCode: string = SAMPLE_DIAGRAMS[0].code): UseGrap
     highlightedNodeIds,
     searchQuery,
     filteredClasses,
+    activeSampleId,
+    hasRemoteDiagram,
+    remoteDiagramName,
+    isLoadingRemote,
+    remoteError,
     stats,
     setMermaidCode,
     loadSample,
+    reloadRemoteDiagram,
     selectClass,
     setSearchQuery,
     showAllNodes,

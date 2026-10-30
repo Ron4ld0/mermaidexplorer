@@ -105,6 +105,7 @@
   position: relative;
   display: flex;
   align-items: center;
+  gap: 6px;
 }
 
 .sample-icon {
@@ -136,4 +137,23 @@
   outline: none;
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 2px var(--accent-primary-glow);
+}
+
+.sample-reload-btn {
+  padding: 6px;
+  height: 31px;
+  width: 31px;
+}
+
+.spin-icon {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }

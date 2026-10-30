@@ -5,6 +5,7 @@ import {
   Layers,
   Moon,
   Network,
+  RefreshCw,
   Sun,
 } from 'lucide-react';
 import { SAMPLE_DIAGRAMS } from '../../utils/sampleDiagrams';
@@ -15,6 +16,11 @@ interface TopNavbarProps {
   onToggleTheme: () => void;
   onOpenImport: () => void;
   onSelectSample: (sampleId: string) => void;
+  activeSampleId?: string;
+  hasRemoteDiagram?: boolean;
+  remoteDiagramName?: string;
+  isLoadingRemote?: boolean;
+  onReloadRemote?: () => void;
   stats: {
     totalClasses: number;
     totalRelations: number;
@@ -29,6 +35,11 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
   onToggleTheme,
   onOpenImport,
   onSelectSample,
+  activeSampleId = 'ecommerce',
+  hasRemoteDiagram = false,
+  remoteDiagramName = 'Diagrama da Equipe',
+  isLoadingRemote = false,
+  onReloadRemote,
   stats,
 }) => {
   return (
@@ -69,19 +80,42 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
           <FileCode size={15} className="sample-icon" />
           <select
             className="sample-select"
-            defaultValue="ecommerce"
+            value={activeSampleId}
             onChange={(e) => onSelectSample(e.target.value)}
             aria-label="Selecionar diagrama de exemplo"
           >
             <option value="" disabled>
-              Diagramas de exemplo
+              Diagramas disponíveis
             </option>
+            {hasRemoteDiagram && (
+              <option value="remote">
+                🌐 {remoteDiagramName} (Remoto)
+              </option>
+            )}
+            {activeSampleId === 'custom' && (
+              <option value="custom" disabled>
+                ✏️ Diagrama Editado Manualmente
+              </option>
+            )}
             {SAMPLE_DIAGRAMS.map((sample) => (
               <option key={sample.id} value={sample.id}>
                 {sample.name} ({sample.classCount} classes)
               </option>
             ))}
           </select>
+
+          {hasRemoteDiagram && onReloadRemote && (
+            <button
+              className="btn btn-secondary btn-icon sample-reload-btn"
+              onClick={onReloadRemote}
+              disabled={isLoadingRemote}
+              title="Buscar versão mais recente do diagrama remoto"
+              aria-label="Recarregar diagrama remoto"
+              id="btn-reload-remote"
+            >
+              <RefreshCw size={15} className={isLoadingRemote ? 'spin-icon' : ''} />
+            </button>
+          )}
         </div>
 
         {/* Import button */}

@@ -31,9 +31,15 @@ export const App: React.FC = () => {
     selectedClassId,
     searchQuery,
     filteredClasses,
+    activeSampleId,
+    hasRemoteDiagram,
+    remoteDiagramName,
+    isLoadingRemote,
+    remoteError,
     stats,
     setMermaidCode,
     loadSample,
+    reloadRemoteDiagram,
     selectClass,
     setSearchQuery,
     showAllNodes,
@@ -61,6 +67,8 @@ export const App: React.FC = () => {
     }
   };
 
+  const activeError = remoteError || parseError;
+
   return (
     <div className="app-container" data-theme={isDark ? 'dark' : 'light'}>
       {/* Top Navbar */}
@@ -69,17 +77,28 @@ export const App: React.FC = () => {
         onToggleTheme={handleToggleTheme}
         onOpenImport={() => setIsEditorOpen(true)}
         onSelectSample={loadSample}
+        activeSampleId={activeSampleId}
+        hasRemoteDiagram={hasRemoteDiagram}
+        remoteDiagramName={remoteDiagramName}
+        isLoadingRemote={isLoadingRemote}
+        onReloadRemote={reloadRemoteDiagram}
         stats={stats}
       />
 
       {/* Global Error Banner */}
-      {parseError && (
+      {activeError && (
         <div className="app-error-banner animate-fade-in" role="alert">
           <AlertCircle size={18} />
-          <span>{parseError}</span>
-          <button onClick={() => setIsEditorOpen(true)} title="Abrir editor para corrigir">
-            Corrigir
-          </button>
+          <span>{activeError}</span>
+          {remoteError ? (
+            <button onClick={reloadRemoteDiagram} title="Tentar carregar novamente">
+              Tentar novamente
+            </button>
+          ) : (
+            <button onClick={() => setIsEditorOpen(true)} title="Abrir editor para corrigir">
+              Corrigir
+            </button>
+          )}
         </div>
       )}
 
